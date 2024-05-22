@@ -1,15 +1,13 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from .models import CustomUser, Doctor, Patient, TimeSlot, Availability, Appointment
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from .models import Doctor, Patient, TimeSlot, Availability, Appointment
+from rest_framework.permissions import IsAuthenticated
 from .serializers import (
-    CustomUserSerializer,
     TimeSlotSerializer,
     AvailabilitySerializer,
     AppointmentSerializer,
     DoctorRegistrationSerializer,
     PatientRegistrationSerializer,
-    CustomTokenObtainPairSerializer,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -17,45 +15,9 @@ from appointments.permission import IsDoctorOrReadOnly
 from rest_framework.decorators import action
 
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-
-class CustomUserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomUserSerializer
-
-
 class TimeSlotViewSet(viewsets.ModelViewSet):
     queryset = TimeSlot.objects.all()
     serializer_class = TimeSlotSerializer
-
-
-# class AvailabilityViewSet(viewsets.ModelViewSet):
-#     queryset = Availability.objects.all()
-#     serializer_class = AvailabilitySerializer
-
-#     def create(self, request, *args, **kwargs):
-#         doctor_id = request.data.get("doctor")
-#         date = request.data.get("date")
-#         time_slot_id = request.data.get("time_slot")
-
-#         if Availability.objects.filter(
-#             doctor_id=doctor_id, date=date, time_slot_id=time_slot_id
-#         ).exists():
-#             return Response(
-#                 {"error": "Availability already exists for this doctor and time slot."},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         time_slot = TimeSlot.objects.get(id=time_slot_id)
-#         availability = Availability.objects.create(
-#             doctor_id=doctor_id, date=date, time_slot=time_slot
-#         )
-#         availability.save()
-#         return Response(
-#             AvailabilitySerializer(availability).data, status=status.HTTP_201_CREATED
-# )
 
 
 class AvailabilityViewSet(viewsets.ModelViewSet):

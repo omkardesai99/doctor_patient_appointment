@@ -1,25 +1,6 @@
 from rest_framework import serializers
 from .models import CustomUser, Doctor, Patient, TimeSlot, Availability, Appointment
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.hashers import make_password
-
-
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-
-        token["username"] = user.username
-        token["is_doctor"] = user.is_doctor
-        token["is_patient"] = user.is_patient
-
-        return token
-
-
-class CustomUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = "__all__"
 
 
 class TimeSlotSerializer(serializers.ModelSerializer):

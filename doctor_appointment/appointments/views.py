@@ -31,7 +31,6 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             .filter(is_available=True)
             .order_by("date", "time_slot__start_time")
         )
-        print(f"queryset: {[i.__dict__ for i in queryset]}")
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 

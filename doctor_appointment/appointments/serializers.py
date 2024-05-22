@@ -46,7 +46,6 @@ class DoctorRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
-        print(f"user_data: {user_data}")
         user = UserRegistrationSerializer.create(
             UserRegistrationSerializer(), validated_data=user_data
         )

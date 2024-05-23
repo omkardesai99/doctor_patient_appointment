@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from .models import Doctor, Patient, TimeSlot, Availability, Appointment
+from .models import Doctor, Patient, TimeSlot, Availability, Appointment, Waitlist
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     TimeSlotSerializer,
@@ -9,7 +9,6 @@ from .serializers import (
     DoctorRegistrationSerializer,
     PatientRegistrationSerializer,
 )
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from appointments.permission import IsDoctorOrReadOnly
 from rest_framework.decorators import action
@@ -31,6 +30,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             .filter(is_available=True)
             .order_by("date", "time_slot__start_time")
         )
+        print(f"queryset: {[i.__dict__ for i in queryset]}")
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -103,10 +103,22 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if Appointment.objects.filter(
             doctor_id=doctor_id, date=date, time_slot_id=time_slot_id
         ).exists():
-            return Response(
-                {"error": "Doctor already has an appointment at this time"},
-                status=status.HTTP_400_BAD_REQUEST,
+            waitlist_entry, created = Waitlist.objects.get_or_create(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                date=date,
+                time_slot_id=time_slot_id,
             )
+            if created:
+                return Response(
+                    {"message": "The requested time slot is already booked. You have been added to the waitlist."},
+                    status=status.HTTP_202_ACCEPTED,
+                )
+            else:
+                return Response(
+                    {"message": "You are already on the waitlist for this time slot."},
+                    status=status.HTTP_200_OK,
+                )
 
         availability = Availability.objects.filter(
             doctor_id=doctor_id, date=date, time_slot_id=time_slot_id, is_available=True
@@ -130,7 +142,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    # curl -X DELETE  http://localhost:8000/api/appointments/4/
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
@@ -153,10 +164,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         )
         availability.is_available = True
         availability.save()
+        waitlist_entry = Waitlist.objects.filter(
+            doctor_id=instance.doctor_id,
+            date=instance.date,
+            time_slot_id=instance.time_slot_id,
+        ).order_by('added_at').first()
+
+        if waitlist_entry:
+            new_appointment = Appointment.objects.create(
+                patient=waitlist_entry.patient,
+                doctor=waitlist_entry.doctor,
+                date=waitlist_entry.date,
+                time_slot=waitlist_entry.time_slot,
+            )
+            waitlist_entry.delete()
+            availability.is_available = False
+            availability.save()
+            return Response(
+                AppointmentSerializer(new_appointment).data, status=status.HTTP_201_CREATED
+            )
 
         self.perform_destroy(instance)
         return Response(
-            {"message": "deleted succesfully"}, status=status.HTTP_204_NO_CONTENT
+            {"message": "Appointment deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
         )
 
     @action(detail=False, methods=["get"], url_path="search")
@@ -175,25 +206,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-# {
-#   "user": {
-#     "username": "doctor3",
-#     "email": "doctor3@gmail.com",
-#     "password": "123"
-#   }
-# }
 class DoctorRegistrationViewSet(viewsets.ModelViewSet):
     queryset = Doctor.objects.all()
     serializer_class = DoctorRegistrationSerializer
 
 
-# {
-#   "user": {
-#     "username": "patient3",
-#     "email": "patient3@gmail.com",
-#     "password": "123"
-#   }
-# }
 class PatientRegistrationViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all()
     serializer_class = PatientRegistrationSerializer
